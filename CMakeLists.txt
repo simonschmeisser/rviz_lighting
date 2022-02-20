@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
   rviz
 )
 
+
 ## This plugin includes Qt widgets, so we must include Qt.
 ## We'll use the version that rviz used so they are compatible.
 if(rviz_QT_VERSION VERSION_LESS "5")
@@ -53,6 +54,7 @@ add_library(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
   ${QT_LIBRARIES}
+  OgreRTShaderSystem
 )
 
 # install

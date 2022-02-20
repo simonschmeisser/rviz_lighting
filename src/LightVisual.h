@@ -11,13 +11,7 @@
 #ifndef LIGHT_VISUAL_H
 #define LIGHT_VISUAL_H
 
-
-namespace Ogre
-{
-class Light;
-class Quaternion;
-class Vector3;
-}
+#include <OgrePrerequisites.h>
 
 namespace rviz_lighting
 {

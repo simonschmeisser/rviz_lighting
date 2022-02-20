@@ -20,6 +20,11 @@
 #include <rviz/properties/vector_property.h>
 #include <OgreLight.h>
 
+#include <OGRE/RTShaderSystem/OgreRTShaderSystem.h>
+
+#include <QDebug>
+
+#include <boost/filesystem.hpp>
 
 namespace rviz_lighting
 {
@@ -111,6 +116,112 @@ void LightDisplay::onInitialize()
   frame_property_->setFrameManager(context_->getFrameManager());
 
   visual_.reset(new LightVisual(context_->getSceneManager(), scene_node_));
+
+  using namespace Ogre;
+  // register our scene with the RTSS
+  RTShader::ShaderGenerator::initialize();
+  RTShader::ShaderGenerator* shadergen = RTShader::ShaderGenerator::getSingletonPtr();
+  shadergen->addSceneManager(scene_manager_);
+
+
+  std::string coreLibsPath;
+  Ogre::StringVector groupVector;
+
+  // Setup the core libraries and shader cache path
+  groupVector = Ogre::ResourceGroupManager::getSingleton().getResourceGroups();
+  Ogre::StringVector::iterator itGroup = groupVector.begin();
+  Ogre::StringVector::iterator itGroupEnd = groupVector.end();
+  Ogre::String shaderCoreLibsPath;
+
+  for (; itGroup != itGroupEnd; ++itGroup)
+  {
+    Ogre::ResourceGroupManager::LocationList resLocationsList;
+    Ogre::ResourceGroupManager::LocationList::iterator it;
+    Ogre::ResourceGroupManager::LocationList::iterator itEnd;
+    bool coreLibsFound = false;
+
+    resLocationsList =
+      Ogre::ResourceGroupManager::getSingleton().getResourceLocationList(
+          *itGroup);
+    it = resLocationsList.begin();
+    itEnd = resLocationsList.end();
+    // Try to find the location of the core shader lib functions and use it
+    // as shader cache path as well - this will reduce the number of
+    // generated files when running from different directories.
+
+    for (; it != itEnd; ++it)
+    {
+      struct stat st;
+#if OGRE_VERSION_MAJOR == 1 && OGRE_VERSION_MINOR >= 11
+      if (stat((*it).archive->getName().c_str(), &st) == 0)
+      {
+        if ((*it).archive->getName().find("rtshaderlib") != Ogre::String::npos)
+        {
+          coreLibsPath = (*it).archive->getName() + "/";
+#else
+      if (stat((*it)->archive->getName().c_str(), &st) == 0)
+      {
+        if ((*it)->archive->getName().find("rtshaderlib") != Ogre::String::npos)
+        {
+          coreLibsPath = (*it)->archive->getName() + "/";
+#endif
+//          // setup patch name for rt shader cache in tmp
+//          char *tmpdir;
+//          char *user;
+//          std::ostringstream stream;
+//          std::ostringstream errStream;
+//          // Get the tmp dir
+//          tmpdir = getenv("TMP");
+//          if (!tmpdir)
+//          {
+//            common::SystemPaths *paths = common::SystemPaths::Instance();
+//            tmpdir = const_cast<char*>(paths->TmpPath().c_str());
+//          }
+//          // Get the user
+//          user = getenv("USER");
+//          if (!user)
+//            user = const_cast<char*>("nobody");
+//          stream << tmpdir << "/gazebo-" << user << "-rtshaderlibcache" << "/";
+//          cachePath = stream.str();
+//          // Create the directory
+//#ifdef _WIN32
+//          if (_mkdir(cachePath.c_str()) != 0)
+//#else
+//          if (mkdir(cachePath.c_str(), S_IRUSR | S_IWUSR | S_IXUSR) != 0)
+//#endif
+//          {
+//            if (errno != EEXIST)
+//            {
+//              errStream << "failed to create [" << cachePath << "] : ["
+//                <<  strerror(errno) << "]";
+//              throw(errStream.str());
+//            }
+//          }
+
+          coreLibsFound = true;
+          break;
+        }
+      }
+    }
+
+    // Core libs path found in the current group.
+    if (coreLibsFound)
+      break;
+  }
+
+ qCritical() << "path: " << coreLibsPath.c_str();
+  // Add the shader libs resource location
+  coreLibsPath = boost::filesystem::path(coreLibsPath)
+      .make_preferred().string();
+  Ogre::ResourceGroupManager::getSingleton().addResourceLocation(
+      coreLibsPath, "FileSystem");
+
+  Ogre::ResourceGroupManager::getSingleton().addResourceLocation("/usr/share/OGRE/", "FileSystem");
+  Ogre::ResourceGroupManager::getSingleton().addResourceLocation("/usr/share/OGRE/Media/ShadowVolume", "FileSystem", "OgreInternal");
+
+  Ogre::ResourceGroupManager::getSingleton().initialiseAllResourceGroups();
+
+  scene_manager_->setShadowTechnique(ShadowTechnique::SHADOWTYPE_STENCIL_ADDITIVE);
 
   // Show and hide the appropriate properties for the current type of light
   updateLightType();

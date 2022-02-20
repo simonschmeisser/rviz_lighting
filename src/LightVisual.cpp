@@ -9,6 +9,8 @@
  */
 
 #include <OGRE/OgreSceneManager.h>
+#include <OGRE/RTShaderSystem/OgreRTShaderSystem.h>
+
 #include "LightVisual.h"
 
 
@@ -23,6 +25,8 @@ LightVisual::LightVisual( Ogre::SceneManager* scene_manager, Ogre::SceneNode* pa
   light_ = scene_manager_->createLight();
   light_->setType( Ogre::Light::LT_DIRECTIONAL );
   // Initial values for color, direction, position, and other things are set when their respective slots get called
+  
+
 }
 
 LightVisual::~LightVisual()
